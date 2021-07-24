@@ -1,0 +1,148 @@
+const version = document.body.getAttribute("data-version");
+
+const params = {}
+for (const [key, value] of new URLSearchParams(location.search.substr(1)).entries()) {
+    params[key.replace("filter_", "")] = value;
+}
+
+const SearchPostFilterModal = async () => {
+    const HTMLElements = await import(`../components/commons/HtmlElements.js?v=${version}`);
+    const htmlTagComposer = await import(`../utils/htmlTagComposer.js?v=${version}`);
+    const CloseButton = await import(`../components/commons/CloseButton.js?v=${version}`);
+    const CustomConrols = await import(`../components/commons/CustomControls.js?v=${version}`);
+
+    const modalDialog = HTMLElements.Container("modal-dialog modal-dialog-scrollable", "search-series-filter-modal-inner");
+    const modalContent = HTMLElements.Container("modal-content");
+    const modalHeader = HTMLElements.Container("modal-header");
+    const modalTitle = HTMLElements.GeneralTag("h5", "modal-title", "필터")
+    const closeBtn = CloseButton.default("btn btn-icon btn-close", null, "modal", "닫기")
+    htmlTagComposer.addChildren(modalHeader, [modalTitle, closeBtn]);
+
+    const modalBody = HTMLElements.Container("modal-body");
+    const targetForm = HTMLElements.Container("form-group", "search-series-filter-target");
+    const targetFormLabel = HTMLElements.GeneralTag("div", "form-label pb-0", "검색 대상");
+    const targetLabelText = HTMLElements.GeneralTag("p", "form-text text-muted mt-0", "중복으로 선택할 수 있습니다.")
+    targetFormLabel.appendChild(targetLabelText);
+    const targetCustomControls = HTMLElements.Container("custom-controls-stacked");
+    htmlTagComposer.addChildren(targetForm, [targetFormLabel, targetCustomControls])
+
+    for (const e of [{
+        name: "filter_series_options_title",
+        type: "checkbox",
+        id: "filter-series-name",
+        value: "1",
+        option: "제목"
+    }, {
+        name: "filter_series_options_description",
+        type: "checkbox",
+        id: "filter-series-description",
+        value: "1",
+        option: "설명"
+    }, {
+        name: "filter_series_options_tags",
+        type: "checkbox",
+        id: "filter-series-tag",
+        value: "1",
+        option: "태그"
+    }, {
+        name: "filter_series_options_nickname",
+        type: "checkbox",
+        id: "filter-series-author",
+        value: "1",
+        option: "작가명"
+    }]) {
+        const data = await CustomConrols.default(e);
+        targetCustomControls.appendChild(data)
+    }
+
+    const modalFooter = HTMLElements.Container("modal-footer d-flex justify-content-between");
+    const resetBtn = HTMLElements.GeneralTag("button", "btn btn-text pl-0", "초기화");
+    resetBtn.id = "btn-series-search-filter-reset";
+    resetBtn.addEventListener("click", (e) => {
+        reset();
+        e.preventDefault();
+    })
+    const submitBtn = HTMLElements.GeneralTag("button", "btn btn-primary", "필터 적용");
+    submitBtn.id = "btn-series-search-filter-submit";
+    submitBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const searchForm = document.querySelector("#search");
+        if (document.querySelectorAll("#search-series-filter-target input:checked").length === 0) {
+            alertPostype("검색 대상을 선택하세요.");
+            e.preventDefault();
+            return false;
+        }
+        updateSearchForm(searchForm)
+        searchForm.submit();
+    })
+    htmlTagComposer.addChildren(modalFooter, [resetBtn, submitBtn])
+    htmlTagComposer.addChildren(modalBody, [targetForm])
+    htmlTagComposer.addChildren(modalContent, [modalHeader, modalBody, modalFooter])
+    modalDialog.appendChild(modalContent);
+    return modalDialog;
+}
+
+const checkTarget = () => {
+    const filterState = document.querySelectorAll("#search-series-filter-target .custom-control-input")
+    for (const e of filterState) {
+        if (e.checked) {
+            return true
+        }
+    }
+    return reset();
+}
+
+const initializeModal = async () => {
+    const HTMLElements = await import(`../components/commons/HtmlElements.js?v=${version}`);
+    const searchSeriesFilterModal = HTMLElements.GeneralTag("form", "modal");
+    searchSeriesFilterModal.id = "search-series-filter-modal";
+    searchSeriesFilterModal.action = "/search/series"
+    searchSeriesFilterModal.method = "GET";
+    searchSeriesFilterModal.tabIndex = "-1";
+    searchSeriesFilterModal.setAttribute("aria-hidden", "true");
+    document.body.appendChild(searchSeriesFilterModal);
+    filterStateHandler();
+    await render();
+    updateFilter();
+    checkTarget();
+    document.getElementById("btn-series-search-filter") && document.getElementById("btn-series-search-filter").addEventListener("click", async (e) => {
+        await render();
+        updateFilter();
+        checkTarget();
+    })
+}
+
+const render = async () => {
+    document.getElementById("search-series-filter-modal-inner") && document.getElementById("search-series-filter-modal-inner").remove();
+    document.getElementById("search-series-filter-modal").appendChild(await SearchPostFilterModal());
+};
+
+const reset = () => {
+    const searchFilterTarget = document.querySelectorAll("#search-series-filter-target .custom-control-input")
+    for (const e of searchFilterTarget) {
+        e.checked = true;
+    }
+}
+
+const updateFilter = () => {
+    const searchFilterTarget = document.querySelectorAll("#search-series-filter-target .custom-control-input")
+    if (Object.keys(params).length === 1) return reset();
+    for (const e of searchFilterTarget) {
+        e.checked = params[e.name.replace("filter_series_", "")] === "1";
+    }
+}
+
+const filterStateHandler = () => {
+    const filterState = document.querySelector("#btn-series-search-filter .filter-status")
+    let numberOfChecked = 0;
+    for (const e in params) {
+        if (params[e] === "1") {
+            numberOfChecked += 1;
+        }
+    }
+    (numberOfChecked === 4 || numberOfChecked === 0) ? filterState.classList.add("d-none") : filterState.classList.remove("d-none")
+}
+
+if (document.getElementById("btn-series-search-filter")) {
+    initializeModal();
+}

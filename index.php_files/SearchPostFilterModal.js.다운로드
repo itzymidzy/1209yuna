@@ -1,0 +1,292 @@
+const version = document.body.getAttribute("data-version");
+
+const params = {}
+for (const [key, value] of new URLSearchParams(location.search.substr(1)).entries()) {
+    params[key.replace("filter_", "")] = value;
+}
+
+const SearchPostFilterModal = async () => {
+    const HTMLElements = await import(`../components/commons/HtmlElements.js?v=${version}`);
+    const htmlTagComposer = await import(`../utils/htmlTagComposer.js?v=${version}`);
+    const CloseButton = await import(`../components/commons/CloseButton.js?v=${version}`);
+    const CustomConrols = await import(`../components/commons/CustomControls.js?v=${version}`);
+
+    const modalDialog = HTMLElements.Container("modal-dialog modal-dialog-scrollable", "search-filter-modal-inner");
+    const modalContent = HTMLElements.Container("modal-content");
+    const modalHeader = HTMLElements.Container("modal-header");
+    const modalTitle = HTMLElements.GeneralTag("h5", "modal-title", "필터")
+    const closeBtn = CloseButton.default("btn btn-icon btn-close", null, "modal", "닫기")
+    htmlTagComposer.addChildren(modalHeader, [modalTitle, closeBtn]);
+    const modalBody = HTMLElements.Container("modal-body");
+    const periodForm = HTMLElements.Container("form-group", "search-filter-period");
+    const periodFormLabel = HTMLElements.GeneralTag("div", "form-label pb-0", "기간");
+    const periodCustomControls = HTMLElements.Container("custom-controls-stacked");
+    htmlTagComposer.addChildren(periodForm, [periodFormLabel, periodCustomControls]);
+
+    for (const e of [{
+        name: "filter_period",
+        id: "period-entire",
+        value: "any_time",
+        option: "전체 기간",
+        type: "radio"
+    }, {
+        name: "filter_period",
+        id: "period-day",
+        value: "past_24_hours",
+        option: "최근 24시간",
+        type: "radio"
+    }, {
+        name: "filter_period",
+        id: "period-week",
+        value: "past_week",
+        option: "최근 1주일",
+        type: "radio"
+    }, {
+        name: "filter_period",
+        id: "period-month",
+        value: "past_month",
+        option: "최근 1개월",
+        type: "radio"
+    }, {
+        name: "filter_period",
+        id: "period-year",
+        value: "past_year",
+        option: "최근 1년",
+        type: "radio"
+    }]) {
+        const data = await CustomConrols.default(e);
+        periodCustomControls.appendChild(data)
+    }
+
+    const targetForm = HTMLElements.Container("form-group", "search-filter-target");
+    const targetFormLabel = HTMLElements.GeneralTag("div", "form-label pb-0", "검색 대상");
+    const targetLabelText = HTMLElements.GeneralTag("p", "form-text text-muted mt-0", "중복으로 선택할 수 있습니다.")
+    targetFormLabel.appendChild(targetLabelText);
+    const targetCustomControls = HTMLElements.Container("custom-controls-stacked");
+    htmlTagComposer.addChildren(targetForm, [targetFormLabel, targetCustomControls])
+
+    for (const e of [{
+        name: "filter_options_title",
+        id: "filter-name",
+        value: "1",
+        option: "제목"
+    }, {
+        name: "filter_options_sub_title",
+        id: "filter-subtitle",
+        value: "1",
+        option: "부제목"
+    }, { name: "filter_options_content", id: "filter-body", value: "1", option: "본문" }, {
+        name: "filter_options_tags",
+        id: "filter-tag",
+        value: "1",
+        option: "태그"
+    }, { name: "filter_options_nickname", id: "filter-author", value: "1", option: "작가명" }]) {
+        const data = await CustomConrols.default(e);
+        targetCustomControls.appendChild(data)
+    }
+
+    const paidPostOnlyForm = HTMLElements.Container("form-group mb-lg-4 paid-post-only");
+    const paidPostOnlyFormTitle = HTMLElements.Container("d-flex justify-content-between");
+    const paidPostOnlyFormRange = HTMLElements.Container("d-flex align-items-center", "search-filter-price-wrapper");
+    htmlTagComposer.addChildren(paidPostOnlyForm, [paidPostOnlyFormTitle, paidPostOnlyFormRange]);
+
+    const paidPostOnlyFormTitleForm = HTMLElements.GeneralTag("div", "form-label pb-0", `유료글만 보기<p class="form-text text-muted mt-0">100P 단위로 입력할 수 있습니다.</p>`);
+    const paidPostOnlyFormTitleLabel = HTMLElements.GeneralTag("label", "switch-control");
+    htmlTagComposer.addChildren(paidPostOnlyFormTitle, [paidPostOnlyFormTitleForm, paidPostOnlyFormTitleLabel])
+
+    const switchControl = HTMLElements.GeneralTag("span", "switch");
+    paidPostOnlyFormTitleLabel.appendChild(switchControl);
+    const switchInput = HTMLElements.GeneralTag("input", "switch-input");
+    switchInput.type = "checkbox";
+    switchInput.name = "filter_paid";
+    switchInput.value = "1";
+    switchInput.id = "filter-pay"
+    switchInput.addEventListener("change", (() => {
+        const filterPrice = document.querySelectorAll("#search-filter-modal-inner .form-control");
+        for (const e of filterPrice) {
+            if (switchInput.checked) {
+                e.disabled = false;
+            } else {
+                e.disabled = true;
+                e.value = null;
+            }
+        }
+    }));
+    const switchIndicator = HTMLElements.GeneralTag("span", "switch-indicator");
+    htmlTagComposer.addChildren(switchControl, [switchInput, switchIndicator]);
+
+    const createPriceFilter = (name, placeholder) => {
+        const filterPriceInputGroup = HTMLElements.Container("input-group");
+        const filterPriceFilter = HTMLElements.GeneralTag("input", "form-control");
+        filterPriceFilter.name = name;
+        filterPriceFilter.placeholder = placeholder;
+        filterPriceFilter.disabled = "disabled";
+        const inputGroupAppend = HTMLElements.GeneralTag("div", "input-group-append", `<span class="input-group-text">P</span>`)
+        htmlTagComposer.addChildren(filterPriceInputGroup, [filterPriceFilter, inputGroupAppend]);
+        return filterPriceInputGroup
+    }
+
+    const filterPriceFirstInputGroup = createPriceFilter("filter_price_min", "최소 100")
+    const tilde = HTMLElements.GeneralTag("div", "pr-2 pl-2", "~");
+    const filterPriceSecondInputGroup = createPriceFilter("filter_price_max", "최대 50,000")
+
+    htmlTagComposer.addChildren(paidPostOnlyFormRange, [filterPriceFirstInputGroup, tilde, filterPriceSecondInputGroup]);
+
+    const modalFooter = HTMLElements.Container("modal-footer d-flex justify-content-between");
+    const resetBtn = HTMLElements.GeneralTag("button", "btn btn-text pl-0", "초기화");
+    resetBtn.id = "btn-search-filter-reset";
+    resetBtn.addEventListener("click", (e) => {
+        reset();
+        e.preventDefault();
+    })
+    const submitBtn = HTMLElements.GeneralTag("button", "btn btn-primary", "필터 적용");
+    submitBtn.id = "btn-search-filter-submit";
+    submitBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const searchForm = document.querySelector("#search");
+        if (document.querySelectorAll("#search-filter-target input:checked").length === 0) {
+            alertPostype("검색 대상을 선택하세요.");
+            e.preventDefault();
+            return false;
+        }
+        updateSearchForm(searchForm)
+        searchForm.submit();
+    })
+    htmlTagComposer.addChildren(modalFooter, [resetBtn, submitBtn])
+    htmlTagComposer.addChildren(modalBody, [periodForm, document.createElement("hr"), targetForm, document.createElement("hr"), paidPostOnlyForm])
+    htmlTagComposer.addChildren(modalContent, [modalHeader, modalBody, modalFooter])
+    modalDialog.appendChild(modalContent);
+    return modalDialog;
+}
+
+const checkTarget = () => {
+    const filterState = document.querySelectorAll("#search-filter-target .custom-control-input")
+    for (const e of filterState) {
+        if (e.checked) {
+            return true
+        }
+    }
+    return reset();
+}
+
+
+const initializeModal = async () => {
+    const HTMLElements = await import(`../components/commons/HtmlElements.js?v=${version}`);
+    const searchFilterModal = HTMLElements.GeneralTag("form", "modal");
+    searchFilterModal.id = "search-filter-modal";
+    searchFilterModal.tabIndex = "-1";
+    searchFilterModal.setAttribute("aria-hidden", "true");
+    document.body.appendChild(searchFilterModal);
+    document.getElementById("btn-search-filter") && document.getElementById("btn-search-filter").addEventListener("click", async (e) => {
+        await render();
+        updateFilter();
+        checkTarget();
+        setCostLimit();
+    })
+}
+
+const render = async () => {
+    document.getElementById("search-filter-modal-inner") && document.getElementById("search-filter-modal-inner").remove();
+    document.getElementById("search-filter-modal").appendChild(await SearchPostFilterModal());
+};
+
+const reset = () => {
+    const searchFilterPeriod = document.querySelectorAll("#search-filter-period .custom-control-input")
+    const searchFilterTarget = document.querySelectorAll("#search-filter-target .custom-control-input")
+    for (const e of searchFilterPeriod) {
+        if (e.value === "any_time") {
+            e.checked = true;
+        }
+    }
+    for (const e of searchFilterTarget) {
+        e.checked = e.name !== "filter_options_content";
+    }
+    const filterPrice = document.getElementById("filter-pay");
+    filterPrice.checked = false;
+    filterPrice.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+const updateFilter = () => {
+    const searchFilterPeriod = document.querySelectorAll("#search-filter-period .custom-control-input")
+    const searchFilterTarget = document.querySelectorAll("#search-filter-target .custom-control-input")
+    if (Object.keys(params).length === 1) return reset();
+
+    document.getElementById("period-entire").checked = true;
+    for (const e of searchFilterPeriod) {
+        if (e.value === params["period"]) {
+            e.checked = true;
+            break;
+        }
+    }
+    for (const e of searchFilterTarget) {
+        e.checked = params[e.name.replace("filter_", "")] === "1";
+    }
+    const switchInput = document.getElementById("filter-pay");
+
+    if (params["paid"] === "1") {
+        switchInput.checked = true;
+    }
+    const filterPrice = document.querySelectorAll("#search-filter-modal-inner .form-control");
+    for (const e of filterPrice) {
+        if (switchInput.checked) {
+            e.disabled = false;
+            e.value = params[e.name.replace("filter_", "")]
+        } else {
+            e.disabled = true;
+        }
+    }
+}
+
+const setCostLimit = () => {
+    const filterPriceMin = document.getElementsByName('filter_price_min')[0];                   // 최솟값 input
+    const filterPriceMax = document.getElementsByName('filter_price_max')[0];                   // 최댓값 input
+    // prevent non-numeric input
+    document.querySelectorAll('input[name^="filter_price_"]').forEach(priceElement => {
+        priceElement.addEventListener('input', function (e) {
+            if (e.data && !e.data.match(/^[\d]+$/)) {
+                this.value = this.value.replace(/[^\d]/gi, '');
+            }
+        });
+    });
+
+    const min = 100;
+    const max = 50000;
+    const step = 100;
+
+    function swapPrices() {
+        let tempValue = filterPriceMin.value;
+        filterPriceMin.value = filterPriceMax.value;
+        filterPriceMax.value = tempValue;
+    }
+
+    // set reasonable min/max limits
+    filterPriceMin.addEventListener('blur', function () {
+        this.value = this.value.replace(/[^\d]/gi, '');
+        this.value = Math.floor(this.value / step) * step;
+        if (this.value < min) {
+            this.value = min;
+        } else if (this.value > max) {
+            this.value = max;
+        }
+        if (this.value && filterPriceMax.value && this.value > filterPriceMax.value) {
+            swapPrices();
+        }
+    });
+
+    filterPriceMax.addEventListener('blur', function () {
+        this.value = this.value.replace(/[^\d]/gi, '');
+        this.value = Math.floor(this.value / step) * step;
+        if (this.value < min) {
+            this.value = min;
+        } else if (this.value > max) {
+            this.value = max;
+        }
+        if (this.value && filterPriceMin.value && this.value < filterPriceMin.value) {
+            swapPrices();
+        }
+    });
+}
+
+if (document.getElementById("btn-search-filter")) {
+    initializeModal();
+}
